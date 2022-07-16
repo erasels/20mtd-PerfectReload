@@ -23,6 +23,7 @@ namespace PerfectReload {
         private static Dictionary<UnityEngine.GameObject, UnityEngine.SpriteRenderer> saveBar = new Dictionary<UnityEngine.GameObject, UnityEngine.SpriteRenderer>();
         private static bool failedReload = false;
         private static bool jankLoaded = false;
+        private static bool enteredReloadThisFrame = false;
 
         public static float SweetSpot = 0.65f;
         public static int ChainSuccess;
@@ -83,6 +84,12 @@ namespace PerfectReload {
                         return;
                     }
 
+                    //Starting reload via key happens before post-update so it instantly fails without this
+                    if (enteredReloadThisFrame) {
+                        enteredReloadThisFrame = false;
+                        return;
+                    }
+
                     if (keyboard.rKey.wasPressedThisFrame) {
                         PRConstants.Logger.LogDebug($"Pressed at {__instance.reloadBar.value}");
                         if (inRange) {
@@ -105,10 +112,17 @@ namespace PerfectReload {
         }
 
         [HarmonyPostfix]
+        [HarmonyPatch(typeof(ReloadState), "Enter")]
+        private static void CatchReloadEnter() {
+            enteredReloadThisFrame = true;
+        }
+
+        [HarmonyPostfix]
         [HarmonyPatch(typeof(ReloadState), "Exit")]
         private static void CatchReloadExit(ReloadState __instance) {
             //Catches state change (StateMachine.Transition), if jankLoaded is false, then that means the reload was finished normally or interrupted by shooting
             //Shouldn't be an issue with ammo resotring effects because all of this happens in order
+            //Infinite ammo messes with this... oops
             if (!jankLoaded && __instance.ammo.fullOnAmmo)
                 ChainSuccess = 0;
             failedReload = false;
