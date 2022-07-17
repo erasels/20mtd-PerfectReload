@@ -23,10 +23,10 @@ namespace PerfectReload {
         private static Dictionary<UnityEngine.GameObject, UnityEngine.SpriteRenderer> saveBar = new Dictionary<UnityEngine.GameObject, UnityEngine.SpriteRenderer>();
         private static bool failedReload = false;
         private static bool jankLoaded = false;
-        private static bool enteredReloadThisFrame = false;
 
-        public static float SweetSpot = 0.65f;
         public static int ChainSuccess;
+        public static float SweetSpot = 0.65f;
+        
 
         public UnityEvent OnPerfectReload;
 
@@ -49,15 +49,25 @@ namespace PerfectReload {
         [HarmonyPatch(typeof(PlayerController), "Start")]
         private static void PlayerControllerStartPostPatch(PlayerController __instance) {
             __instance.gameObject.AddComponent<PRBonus>();
+
+            //Don't double assign in case the actionbinding is shared or smth
+            if (__instance.playerInput.currentActionMap.FindBinding(new InputBinding("<Keyboard>/f", action:"Reload", groups: "Keyboard&Mouse"), out _) == -1) {
+                __instance.playerInput.currentActionMap.AddBinding(new InputBinding("<Keyboard>/f", action: "Reload", groups: "Keyboard&Mouse", name: "AltReload"));
+            }
         }
 
         [HarmonyPostfix]
         [HarmonyPatch(typeof(PlayerController), "Update")]
         private static void PlayerControllerUpdatePostPatch(PlayerController __instance) {
             if (gameController.CurrentState is CombatState) {
-                var keyboard = Keyboard.current;
-                if (keyboard == null)
-                    return; // No keyboard connected.
+                //Fixes random damage numbers being colored by resetting it to white
+                for (int i = damagePopups.Count - 1; i >= 0; i--) {
+                    if(!damagePopups[i].activeSelf) {
+                        damagePopups[i].GetComponent<TextMeshPro>().color = UnityEngine.Color.white;
+                        damagePopups.RemoveAt(i);
+                    }
+                }
+
 
                 if (__instance.CurrentState is ReloadState) {
                     if (!saveBar.ContainsKey(__instance.reloadBar.gameObject)) {
@@ -84,13 +94,12 @@ namespace PerfectReload {
                         return;
                     }
 
-                    //Starting reload via key happens before post-update so it instantly fails without this
-                    if (enteredReloadThisFrame) {
-                        enteredReloadThisFrame = false;
+                    //Starting reload via key happens before post-update so it instantly fails without this and failsafe for quick double tapping
+                    if (__instance.reloadBar.value <= 0.15f) {
                         return;
                     }
 
-                    if (keyboard.rKey.wasPressedThisFrame) {
+                    if (__instance.playerInput.currentActionMap.FindAction("Reload").triggered) {
                         PRConstants.Logger.LogDebug($"Pressed at {__instance.reloadBar.value}");
                         if (inRange) {
                             doJankReload(__instance);
@@ -112,24 +121,21 @@ namespace PerfectReload {
         }
 
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(ReloadState), "Enter")]
-        private static void CatchReloadEnter() {
-            enteredReloadThisFrame = true;
-        }
-
-        [HarmonyPostfix]
         [HarmonyPatch(typeof(ReloadState), "Exit")]
         private static void CatchReloadExit(ReloadState __instance) {
             //Catches state change (StateMachine.Transition), if jankLoaded is false, then that means the reload was finished normally or interrupted by shooting
             //Shouldn't be an issue with ammo resotring effects because all of this happens in order
             //Infinite ammo messes with this... oops
-            if (!jankLoaded && __instance.ammo.fullOnAmmo)
+            if (!jankLoaded && __instance.ammo.fullOnAmmo) {
                 ChainSuccess = 0;
+                PRConstants.Logger.LogInfo("ResetExit");
+            }
             failedReload = false;
         }
 
         private static void doJankReload(PlayerController pc) {
             ChainSuccess++;
+            PRConstants.Logger.LogInfo("Incremented");
             PRConstants.Logger.LogDebug($"Success, chain counter at: {ChainSuccess}");
             pc.CurrentState.StopCoroutine(((ReloadState)pc.CurrentState).reloadCoroutine);
             ((ReloadState)pc.CurrentState).reloadCoroutine = null;
@@ -148,12 +154,14 @@ namespace PerfectReload {
             pc.reloadBar.transform.parent.gameObject.SetActive(false);
         }
 
+        private static List<GameObject> damagePopups = new List<GameObject>();
         private static void createTextPopup(Vector3 pos, String text, Color col) {
             GameObject pooledObject = ObjectPooler.SharedInstance.GetPooledObject("DamagePopup");
             pooledObject.transform.position = pos;
             pooledObject.SetActive(true);
             pooledObject.GetComponent<TextMeshPro>().color = col;
             pooledObject.GetComponent<TextMeshPro>().text = text;
+            damagePopups.Add(pooledObject);
         }
     }
 }
