@@ -44,8 +44,8 @@ namespace PerfectReload {
             __instance.gameObject.AddComponent<ChainSuccessManager>();
 
             //Don't double assign in case the actionbinding is shared or smth
-            if (__instance.playerInput.currentActionMap.FindBinding(new InputBinding("<Keyboard>/f", action: "Reload", groups: "Keyboard&Mouse"), out _) == -1) {
-                __instance.playerInput.currentActionMap.AddBinding(new InputBinding("<Keyboard>/f", action: "Reload", groups: "Keyboard&Mouse", name: "AltReload"));
+            if (__instance.playerInput.currentActionMap.FindBinding(new InputBinding("<Keyboard>/"+Plugin.altReloadKey.Value, action: "Reload", groups: "Keyboard&Mouse"), out _) == -1) {
+                __instance.playerInput.currentActionMap.AddBinding(new InputBinding("<Keyboard>/" + Plugin.altReloadKey.Value, action: "Reload", groups: "Keyboard&Mouse", name: "AltReload"));
             }
         }
 
