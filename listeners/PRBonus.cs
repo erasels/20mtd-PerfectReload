@@ -1,4 +1,5 @@
 ﻿using flanne;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -8,7 +9,7 @@ namespace PerfectReload.listeners {
         [SerializeField]
         private float damageBonus = 0.5f;
         [SerializeField]
-        private float duration = 1.5f;
+        private float duration = 1.25f;
 
         private StatsHolder stats;
         private List<float> timers = new List<float>();
@@ -16,7 +17,8 @@ namespace PerfectReload.listeners {
         //This stacks, baby!
         private void OnPerfectReload() {
             stats[StatType.BulletDamage].AddMultiplierBonus(damageBonus);
-            timers.Add(duration);
+            //Stack duration on chain success to a max of 5 seconds
+            timers.Add(duration + (Math.Min(0.25f * PRMechanic.ChainSuccess, 3.75f)));
         }
 
         private void Start() {
