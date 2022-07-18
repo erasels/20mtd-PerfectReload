@@ -1,7 +1,7 @@
 ﻿using flanne;
 using UnityEngine;
 using UnityEngine.Events;
-using static PerfectReload.Plugin;
+using static PerfectReload.PRMechanic;
 
 namespace PerfectReload.listeners {
     public class ChainSuccessManager : MonoBehaviour {

@@ -22,11 +22,11 @@ namespace PerfectReload.listeners {
         private void Start() {
             PlayerController componentInParent = transform.GetComponentInParent<PlayerController>();
             stats = componentInParent.stats;
-            PRConstants.plugin.OnPerfectReload.AddListener(new UnityAction(OnPerfectReload));
+            PRMechanic.OnPerfectReload.AddListener(new UnityAction(OnPerfectReload));
         }
 
         private void OnDestroy() {
-            PRConstants.plugin.OnPerfectReload.RemoveListener(new UnityAction(OnPerfectReload));
+            PRMechanic.OnPerfectReload.RemoveListener(new UnityAction(OnPerfectReload));
             timers.Clear();
         }
 
