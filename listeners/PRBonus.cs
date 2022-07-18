@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace PerfectReload {
+namespace PerfectReload.listeners {
     public class PRBonus : MonoBehaviour {
         [SerializeField]
         private float damageBonus = 0.5f;

@@ -3,6 +3,7 @@ using flanne;
 using flanne.Core;
 using flanne.Player;
 using HarmonyLib;
+using PerfectReload.listeners;
 using System;
 using System.Collections.Generic;
 using TMPro;
@@ -22,8 +23,8 @@ namespace PerfectReload {
         private static UnityEngine.Color orgCol = UnityEngine.Color.white;
         private static Dictionary<UnityEngine.GameObject, UnityEngine.SpriteRenderer> saveBar = new Dictionary<UnityEngine.GameObject, UnityEngine.SpriteRenderer>();
         private static bool failedReload = false;
-        private static bool jankLoaded = false;
 
+        public static bool jankLoaded = false;
         public static int ChainSuccess;
         public static float SweetSpot = 0.65f;
         
@@ -48,7 +49,10 @@ namespace PerfectReload {
         [HarmonyPostfix]
         [HarmonyPatch(typeof(PlayerController), "Start")]
         private static void PlayerControllerStartPostPatch(PlayerController __instance) {
+            //Bonus on sweetspot reload
             __instance.gameObject.AddComponent<PRBonus>();
+            //Manages ChainSuccess
+            __instance.gameObject.AddComponent<ChainSuccessManager>();
 
             //Don't double assign in case the actionbinding is shared or smth
             if (__instance.playerInput.currentActionMap.FindBinding(new InputBinding("<Keyboard>/f", action:"Reload", groups: "Keyboard&Mouse"), out _) == -1) {
@@ -90,7 +94,6 @@ namespace PerfectReload {
                         }
                     } else {
                         saveBar[__instance.reloadBar.gameObject].color = UnityEngine.Color.red;
-                        ChainSuccess = 0;
                         return;
                     }
 
@@ -103,8 +106,8 @@ namespace PerfectReload {
                         PRConstants.Logger.LogDebug($"Pressed at {__instance.reloadBar.value}");
                         if (inRange) {
                             doJankReload(__instance);
+
                             if (inSweetSpot) {
-                                PRConstants.Logger.LogDebug("Sweet spot hit!");
                                 PRConstants.plugin.OnPerfectReload.Invoke();
                                 createTextPopup(__instance.reloadBar.transform.position, $"Sweet! (x{ChainSuccess})", Color.cyan);
                             } else {
@@ -123,33 +126,24 @@ namespace PerfectReload {
         [HarmonyPostfix]
         [HarmonyPatch(typeof(ReloadState), "Exit")]
         private static void CatchReloadExit(ReloadState __instance) {
-            //Catches state change (StateMachine.Transition), if jankLoaded is false, then that means the reload was finished normally or interrupted by shooting
-            //Shouldn't be an issue with ammo resotring effects because all of this happens in order
-            //Infinite ammo messes with this... oops
-            if (!jankLoaded && __instance.ammo.fullOnAmmo) {
-                ChainSuccess = 0;
-                PRConstants.Logger.LogInfo("ResetExit");
-            }
             failedReload = false;
         }
 
         private static void doJankReload(PlayerController pc) {
-            ChainSuccess++;
-            PRConstants.Logger.LogInfo("Incremented");
             PRConstants.Logger.LogDebug($"Success, chain counter at: {ChainSuccess}");
             pc.CurrentState.StopCoroutine(((ReloadState)pc.CurrentState).reloadCoroutine);
             ((ReloadState)pc.CurrentState).reloadCoroutine = null;
 
+            jankLoaded = true;
             pc.ammo.Reload();
+            jankLoaded = false;
             ((PlayerState)pc.CurrentState).owner.reloadEndSFX.Play(null);
 
-            jankLoaded = true;
             if (pc.playerInput.actions["Fire"].ReadValue<float>() != 0f) {
                 ((PlayerState)pc.CurrentState).owner.ChangeState<ShootingState>();
             } else {
                 ((PlayerState)pc.CurrentState).owner.ChangeState<IdleState>();
             }
-            jankLoaded = false;
 
             pc.reloadBar.transform.parent.gameObject.SetActive(false);
         }

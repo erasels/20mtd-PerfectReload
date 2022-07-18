@@ -47,8 +47,6 @@
 
 	<!--Automatic deploy-->
 	<Target Name="Deploy" AfterTargets="Build;Publish">
-		<Copy
-			SourceFiles="@(MainAssembly)" DestinationFolder="$(BepInExDir)\plugins\$(AssemblyName)"
-      />
+		<Copy SourceFiles="@(MainAssembly)" DestinationFolder="$(BepInExDir)\plugins\$(AssemblyName)" />
 	</Target>
 </Project>
